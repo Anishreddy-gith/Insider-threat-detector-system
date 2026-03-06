@@ -1,0 +1,71 @@
+# ─────────────────────────────────────────────────────────────────
+# ITDS Context-Aware Scoring Rules
+# ─────────────────────────────────────────────────────────────────
+#
+# Each rule has:
+#   condition  – a field in the HR context that triggers the rule
+#   value      – expected value (true/false for booleans, or a match type)
+#   factor     – multiplier applied to the raw ML score
+#   reason     – human-readable explanation shown in the response
+#   priority   – lower = applied first (for ordering)
+#
+# Factors > 1.0 ESCALATE; factors < 1.0 DE-ESCALATE.
+# Factors are applied multiplicatively in priority order.
+# ─────────────────────────────────────────────────────────────────
+
+rules:
+  - name: user_on_pto
+    condition: is_on_pto
+    value: true
+    factor: 1.3
+    reason: >-
+      User is currently on PTO — any system activity is unexpected
+      and warrants heightened scrutiny.
+    priority: 10
+
+  - name: recently_promoted
+    condition: recently_promoted
+    value: true
+    factor: 0.8
+    reason: >-
+      User was recently promoted — expanded access patterns are
+      expected as they transition into their new role.
+    priority: 20
+
+  - name: submitted_resignation
+    condition: submitted_resignation
+    value: true
+    factor: 1.5
+    reason: >-
+      User has submitted their resignation — departing employees
+      are a statistically elevated insider-threat risk; data
+      exfiltration often occurs during notice periods.
+    priority: 5
+
+  - name: project_match
+    condition: resource_matches_project
+    value: true
+    factor: 0.7
+    reason: >-
+      The accessed resource aligns with the user's current project
+      assignment — this activity is expected and role-appropriate.
+    priority: 30
+
+  - name: after_hours_non_ops
+    condition: after_hours_non_ops
+    value: true
+    factor: 1.2
+    reason: >-
+      Non-operations user accessing systems outside standard
+      business hours without an on-call schedule.
+    priority: 25
+
+  - name: new_hire_probation
+    condition: is_new_hire
+    value: true
+    factor: 1.1
+    reason: >-
+      User is within their 90-day probation period — baseline
+      behaviour is still being established, so anomalies carry
+      slightly higher weight.
+    priority: 35

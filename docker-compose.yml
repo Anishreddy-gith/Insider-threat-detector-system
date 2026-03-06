@@ -1,0 +1,231 @@
+###############################################################################
+#  ITDS – Insider Threat Detection System  •  docker-compose.yml
+#
+#  Infrastructure: PostgreSQL 16, Redis 7, Kafka 3.7 (KRaft via Zookeeper)
+#  Services:       api-gateway, ingestion-service, ml-engine,
+#                  risk-scoring-service, alert-service, frontend
+###############################################################################
+
+version: "3.9"
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ── Infrastructure ──────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: itds
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-itds_secret}
+      POSTGRES_DB: itds
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U itds"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD:-itds_redis}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-itds_redis}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zkdata:/var/lib/zookeeper/data
+      - zklog:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1          # Kafka 3.7
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    logging: *default-logging
+
+  # ── Application Services ───────────────────────────────────────────
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD:-itds_redis}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      INGESTION_URL: http://ingestion-service:8001
+      ML_ENGINE_URL: http://ml-engine:8002
+      RISK_SCORING_URL: http://risk-scoring-service:8003
+      ALERT_URL: http://alert-service:8004
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  ingestion-service:
+    build:
+      context: ./services/ingestion-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: itds.raw-events
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/healthz')\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  ml-engine:
+    build:
+      context: ./services/ml-engine
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_URL: redis://:${REDIS_PASSWORD:-itds_redis}@redis:6379/1
+      MODEL_DIR: /app/models/weights
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/healthz')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    logging: *default-logging
+
+  risk-scoring-service:
+    build:
+      context: ./services/risk-scoring-service
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_URL: redis://:${REDIS_PASSWORD:-itds_redis}@redis:6379/2
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/healthz')\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  alert-service:
+    build:
+      context: ./services/alert-service
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8004"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DATABASE_URL: postgresql+asyncpg://itds:${POSTGRES_PASSWORD:-itds_secret}@postgres:5432/itds_alerts
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8004/healthz')\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: http://localhost:8000
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+# ── Named Volumes ──────────────────────────────────────────────────
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+  zkdata:
+    driver: local
+  zklog:
+    driver: local
+  kafkadata:
+    driver: local

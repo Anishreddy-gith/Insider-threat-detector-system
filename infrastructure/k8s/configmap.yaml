@@ -1,0 +1,14 @@
+# ConfigMap for shared environment variables across services.
+# Sensitive values (DB passwords, JWT secrets) belong in secrets.yaml, not here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itds-config
+  namespace: itds
+data:
+  DATABASE_HOST: "postgres"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "itds"
+  REDIS_URL: "redis://redis:6379/0"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  LOG_LEVEL: "INFO"

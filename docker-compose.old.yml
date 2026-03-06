@@ -1,0 +1,220 @@
+# ================================================================
+#  Insider Threat Detection System — Docker Compose (Production)
+# ================================================================
+# Spins up all microservices + infrastructure.
+# Usage: docker compose --env-file .env up -d
+
+version: "3.9"
+
+x-common-env: &common-env
+  POSTGRES_HOST: ${POSTGRES_HOST}
+  POSTGRES_PORT: ${POSTGRES_PORT}
+  POSTGRES_DB: ${POSTGRES_DB}
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_FORMAT: ${LOG_FORMAT:-json}
+
+services:
+  # ── Infrastructure ───────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── Microservices ────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      AUTH_SERVICE_URL: http://auth-service:${AUTH_SERVICE_PORT}
+      BA_SERVICE_URL: http://behavioral-analytics:${BA_SERVICE_PORT}
+      RISK_SERVICE_URL: http://risk-scoring:${RISK_SERVICE_PORT}
+    ports:
+      - "${API_GATEWAY_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  data-ingestion:
+    build:
+      context: ./services/data-ingestion
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      BATCH_SIZE: ${BATCH_SIZE:-1000}
+      FLUSH_INTERVAL_SECONDS: ${FLUSH_INTERVAL_SECONDS:-5}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  behavioral-analytics:
+    build:
+      context: ./services/behavioral-analytics
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      MODEL_REGISTRY_PATH: ${MODEL_REGISTRY_PATH:-/models}
+      ANOMALY_THRESHOLD: ${ANOMALY_THRESHOLD:-0.85}
+      ENABLE_GNN_MODEL: ${ENABLE_GNN_MODEL:-true}
+      ENABLE_EXPLAINABILITY: ${ENABLE_EXPLAINABILITY:-true}
+      DIFFERENTIAL_PRIVACY_EPSILON: ${DIFFERENTIAL_PRIVACY_EPSILON:-1.0}
+      DIFFERENTIAL_PRIVACY_DELTA: ${DIFFERENTIAL_PRIVACY_DELTA:-1e-5}
+    ports:
+      - "${BA_SERVICE_PORT:-8001}:8001"
+    volumes:
+      - model_registry:/models
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  risk-scoring:
+    build:
+      context: ./services/risk-scoring
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      RISK_SCORE_DECAY_HOURS: ${RISK_SCORE_DECAY_HOURS:-24}
+      ALERT_COOLDOWN_MINUTES: ${ALERT_COOLDOWN_MINUTES:-15}
+    ports:
+      - "${RISK_SERVICE_PORT:-8002}:8002"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+    ports:
+      - "${AUTH_SERVICE_PORT:-8004}:8004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Frontend ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+
+  # ── Monitoring ───────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  model_registry:
+  prometheus_data:
+  grafana_data:

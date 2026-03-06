@@ -1,0 +1,137 @@
+[tool.poetry]
+name = "insider-threat-detector-system"
+version = "1.0.0"
+description = "Enterprise Insider Threat Detection System – monorepo root"
+authors = ["ITDS Team"]
+readme = "README.md"
+license = "MIT"
+packages = [
+    { include = "services/shared-libs", from = "." },
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+# ── Web Framework & Server ───────────────────────────────────────────
+fastapi           = "^0.115.0"
+uvicorn           = { version = "^0.32.0", extras = ["standard"] }
+pydantic          = "^2.9"
+pydantic-settings = "^2.6"
+
+# ── Database ─────────────────────────────────────────────────────────
+sqlalchemy        = "^2.0"
+asyncpg           = "^0.30.0"
+alembic           = "^1.14"
+
+# ── Messaging ────────────────────────────────────────────────────────
+aiokafka          = "^0.11"
+
+# ── Caching / State ─────────────────────────────────────────────────
+redis              = { version = "^5.2", extras = ["hiredis"] }
+
+# ── ML / Deep Learning ──────────────────────────────────────────────
+torch             = "^2.5"
+torch-geometric   = "^2.6"
+scikit-learn      = "^1.5"
+
+# ── Explainability (XAI) ────────────────────────────────────────────
+shap              = "^0.46"
+lime              = "^0.2"
+
+# ── Privacy / Federated Learning ─────────────────────────────────────
+opendp            = "^0.11"
+flwr              = { version = "^1.13", extras = ["simulation"] }
+
+# ── Observability ────────────────────────────────────────────────────
+prometheus-fastapi-instrumentator = "^7.0"
+structlog         = "^24.4"
+
+# ── Cryptography ─────────────────────────────────────────────────────
+cryptography      = "^43.0"
+pyjwt             = "^2.9"
+bcrypt            = "^4.2"
+
+# ── HTTP Client ──────────────────────────────────────────────────────
+httpx             = "^0.27"
+
+[tool.poetry.group.dev.dependencies]
+pytest            = "^8.3"
+pytest-asyncio    = "^0.24"
+pytest-cov        = "^6.0"
+pytest-xdist      = "^3.5"
+pytest-timeout    = "^2.3"
+hypothesis        = "^6.100"
+httpx             = "^0.27"          # TestClient transport
+locust            = "^2.27"
+fakeredis         = "^2.21"
+testcontainers    = { version = "^4.0", extras = ["kafka", "postgres"] }
+confluent-kafka   = "^2.3"
+scipy             = "^1.12"
+ruff              = "^0.8"
+mypy              = "^1.13"
+pre-commit        = "^4.0"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
+
+# ── Ruff (linter + formatter) ───────────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["services"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["shared_libs"]
+
+# ── Pytest ───────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+timeout = 300
+markers = [
+    "integration: tests requiring Docker containers (Kafka, Postgres)",
+    "slow: tests that take > 30 seconds",
+    "privacy: differential privacy and membership inference tests",
+    "load: Locust load tests (run separately)",
+]
+addopts = "--strict-markers -ra --tb=short -v --color=yes"
+filterwarnings = [
+    "ignore::DeprecationWarning:hypothesis.*",
+    "ignore::UserWarning:torch.*",
+    "ignore::FutureWarning:sklearn.*",
+]
+
+[tool.coverage.run]
+source = [
+    "services/ml-engine/app",
+    "services/api-gateway/app",
+    "services/ingestion-service/app",
+    "services/risk-scoring-service/app",
+    "services/alert-service/app",
+]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
+fail_under = 60
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+    "pass",
+]
+
+# ── MyPy ─────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]

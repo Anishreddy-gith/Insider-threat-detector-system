@@ -1,0 +1,331 @@
+---
+# ── API Gateway ──────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: itds
+  labels:
+    app: api-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: itds/api-gateway:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: itds-config
+            - secretRef:
+                name: itds-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: itds
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+# ── Data Ingestion ───────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-ingestion
+  namespace: itds
+  labels:
+    app: data-ingestion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: data-ingestion
+  template:
+    metadata:
+      labels:
+        app: data-ingestion
+    spec:
+      containers:
+        - name: data-ingestion
+          image: itds/data-ingestion:latest
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: itds-config
+            - secretRef:
+                name: itds-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-ingestion
+  namespace: itds
+spec:
+  selector:
+    app: data-ingestion
+  ports:
+    - port: 8001
+      targetPort: 8001
+  type: ClusterIP
+---
+# ── Behavioral Analytics ─────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: behavioral-analytics
+  namespace: itds
+  labels:
+    app: behavioral-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: behavioral-analytics
+  template:
+    metadata:
+      labels:
+        app: behavioral-analytics
+    spec:
+      containers:
+        - name: behavioral-analytics
+          image: itds/behavioral-analytics:latest
+          ports:
+            - containerPort: 8002
+          envFrom:
+            - configMapRef:
+                name: itds-config
+            - secretRef:
+                name: itds-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8002
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: behavioral-analytics
+  namespace: itds
+spec:
+  selector:
+    app: behavioral-analytics
+  ports:
+    - port: 8002
+      targetPort: 8002
+  type: ClusterIP
+---
+# ── Risk Scoring ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: risk-scoring
+  namespace: itds
+  labels:
+    app: risk-scoring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: risk-scoring
+  template:
+    metadata:
+      labels:
+        app: risk-scoring
+    spec:
+      containers:
+        - name: risk-scoring
+          image: itds/risk-scoring:latest
+          ports:
+            - containerPort: 8003
+          envFrom:
+            - configMapRef:
+                name: itds-config
+            - secretRef:
+                name: itds-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: risk-scoring
+  namespace: itds
+spec:
+  selector:
+    app: risk-scoring
+  ports:
+    - port: 8003
+      targetPort: 8003
+  type: ClusterIP
+---
+# ── Auth Service ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: itds
+  labels:
+    app: auth-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: itds/auth-service:latest
+          ports:
+            - containerPort: 8004
+          envFrom:
+            - configMapRef:
+                name: itds-config
+            - secretRef:
+                name: itds-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8004
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: itds
+spec:
+  selector:
+    app: auth-service
+  ports:
+    - port: 8004
+      targetPort: 8004
+  type: ClusterIP
+---
+# ── Frontend ─────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: itds
+  labels:
+    app: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: itds/frontend:latest
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: itds
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

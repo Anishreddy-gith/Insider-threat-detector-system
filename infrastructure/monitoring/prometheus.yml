@@ -1,0 +1,48 @@
+# Prometheus configuration for ITDS
+# Scrape all microservices at /metrics (exposed by prometheus-fastapi-instrumentator)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files: []
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "api-gateway"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api-gateway:8000"]
+        labels:
+          service: api-gateway
+
+  - job_name: "data-ingestion"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["data-ingestion:8001"]
+        labels:
+          service: data-ingestion
+
+  - job_name: "behavioral-analytics"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["behavioral-analytics:8002"]
+        labels:
+          service: behavioral-analytics
+
+  - job_name: "risk-scoring"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["risk-scoring:8003"]
+        labels:
+          service: risk-scoring
+
+  - job_name: "auth-service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["auth-service:8004"]
+        labels:
+          service: auth-service
