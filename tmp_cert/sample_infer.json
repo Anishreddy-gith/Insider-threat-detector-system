@@ -1,0 +1,7 @@
+{
+  "login_frequency": 1.0,
+  "after_hours_activity": 0.2,
+  "file_access_deviation": 0.0,
+  "email_anomalies": 0.1,
+  "session_duration": 1200.0
+}

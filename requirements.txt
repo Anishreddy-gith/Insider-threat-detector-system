@@ -1,0 +1,9 @@
+# Root aggregate dependencies for local refactor/test environment.
+-r services/api_gateway/requirements.txt
+-r services/auth_service/requirements.txt
+-r services/behavioral-analytics/requirements.txt
+-r services/data-ingestion/requirements.txt
+-r services/ingestion/requirements.txt
+-r services/ml_engine/requirements.txt
+-r services/risk_scoring/requirements.txt
+-r tests/requirements-test.txt

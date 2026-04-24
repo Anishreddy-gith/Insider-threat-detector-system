@@ -1,0 +1,2 @@
+user,date,pc,filename,to_removable_media,from_removable_media
+user1,01/01/2023 11:00:00,PC-100,file1.doc,True,False

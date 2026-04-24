@@ -1,0 +1,3 @@
+user,date,pc,activity
+user1,01/01/2023 09:00:00,PC-100,Connect
+user1,01/01/2023 10:00:00,PC-100,Disconnect

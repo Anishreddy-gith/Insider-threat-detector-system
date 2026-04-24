@@ -9,6 +9,23 @@ from __future__ import annotations
 
 from typing import Final
 
+
+class KafkaTopics:
+    """Backward-compatible topic namespace used by existing tests."""
+
+    RAW_EVENTS: Final[str] = "itds.user.activity"
+    ANOMALIES: Final[str] = "itds.anomaly.detected"
+    RISK_EVENTS: Final[str] = "itds.risk.score"
+
+
+class RiskLevel:
+    """Backward-compatible risk-level namespace used by existing tests."""
+
+    LOW: Final[str] = "low"
+    MEDIUM: Final[str] = "medium"
+    HIGH: Final[str] = "high"
+    CRITICAL: Final[str] = "critical"
+
 # ── Kafka Topics ──────────────────────────────────────────────
 # Topic names follow the pattern: itds.<domain>.<action>
 TOPIC_USER_ACTIVITY: Final[str] = "itds.user.activity"
