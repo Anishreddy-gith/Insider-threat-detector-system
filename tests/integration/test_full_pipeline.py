@@ -46,28 +46,14 @@ try:
 except ImportError:
     HAS_SQLALCHEMY = False
 
-
-def _docker_available() -> bool:
-    try:
-        import docker
-
-        client = docker.from_env()
-        client.ping()
-        return True
-    except Exception:
-        return False
-
-
-HAS_DOCKER = _docker_available()
-
 # ── ML engine imports (from conftest sys.path setup) ───────────────
-from services.ml_engine.app.detectors import (
+from app.detectors import (
     IsolationForestDetector,
     AutoencoderDetector,
     LSTMDetector,
     EnsembleScorer,
 )
-from services.ml_engine.app.pipeline.inference import InferencePipeline
+from app.pipeline.inference import InferencePipeline
 
 skip_no_testcontainers = pytest.mark.skipif(
     not HAS_TESTCONTAINERS,
@@ -76,10 +62,6 @@ skip_no_testcontainers = pytest.mark.skipif(
 skip_no_kafka_client = pytest.mark.skipif(
     not HAS_KAFKA_CLIENT,
     reason="confluent-kafka not installed",
-)
-skip_no_docker = pytest.mark.skipif(
-    not HAS_DOCKER,
-    reason="Docker daemon not available",
 )
 
 pytestmark = [
@@ -252,7 +234,6 @@ def _network_event(
 #  Test classes
 # ═══════════════════════════════════════════════════════════════════
 
-@skip_no_docker
 class TestKafkaEventFlow:
     """Verify events can be produced and consumed through Kafka."""
 
@@ -289,7 +270,6 @@ class TestKafkaEventFlow:
         assert received_ids == expected_ids
 
 
-@skip_no_docker
 class TestDatabasePersistence:
     """Verify events and scores can be written/read from Postgres."""
 
@@ -397,7 +377,7 @@ class TestMLPipelineIntegration:
 
         scores = np.array([[iso_out[0]["anomaly_score"], ae_out[0]["anomaly_score"]]])
         ens_out = trained_pipeline["ens"].predict(scores)
-        assert ens_out[0]["anomaly_score"] < 0.7
+        assert ens_out[0]["anomaly_score"] < 0.5
 
     def test_anomalous_user_high_score(self, trained_pipeline):
         """Anomalous behaviour should produce a high ensemble score."""
@@ -491,7 +471,6 @@ class TestCrossServiceDataContract:
             assert 0.0 <= score <= 1.0
 
 
-@skip_no_docker
 class TestEndToEndEventProcessing:
     """Full round-trip: kafka produce → DB store → ML predict → score."""
 

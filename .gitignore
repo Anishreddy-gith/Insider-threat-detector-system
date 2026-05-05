@@ -1,8 +1,6 @@
 # Python
 __pycache__/
-**pycache**/
 *.py[cod]
-*.pyc
 *$py.class
 *.so
 *.egg-info/
@@ -44,10 +42,6 @@ desktop.ini
 # Environment
 .env
 !.env.example
-
-# Runtime data / model artifacts
-data/
-model_artifacts/
 
 # Docker volumes
 postgres_data/

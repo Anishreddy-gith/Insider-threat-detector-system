@@ -1,15 +1,15 @@
-"""
-Analytics Routes — Dashboard Aggregation + Entity Proxy
+﻿"""
+Analytics Routes â€” Dashboard Aggregation + Entity Proxy
 ========================================================
 Implements the **request aggregation** pattern for the dashboard:
 a single ``GET /analytics/dashboard`` fans out to three downstream
 services in parallel and merges the results.
 
 Endpoints:
-  GET /analytics/dashboard              — Aggregated SOC dashboard
-  GET /analytics/entities               — Local entity list (DB)
-  GET /analytics/entities/{entity_id}   — Entity detail (DB + risk proxy)
-  GET /analytics/model-health           — Proxy to ML engine / alert FP/FN
+  GET /analytics/dashboard              â€” Aggregated SOC dashboard
+  GET /analytics/entities               â€” Local entity list (DB)
+  GET /analytics/entities/{entity_id}   â€” Entity detail (DB + risk proxy)
+  GET /analytics/model-health           â€” Proxy to ML engine / alert FP/FN
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.api_gateway.app.auth_components.jwt_handler import Role
-from services.api_gateway.app.auth_components.rbac import TokenPayload, require_role
+from services.api_gateway.app.auth.jwt_handler import Role
+from services.api_gateway.app.auth.rbac import TokenPayload, require_role
 from services.api_gateway.app.models.database import Alert, MonitoredEntity, get_db
 from services.api_gateway.app.models.schemas import (
     DashboardMetrics,
@@ -47,11 +47,11 @@ log = get_logger(__name__)
 DASHBOARD_CACHE_TTL = 30  # seconds
 
 
-# ── Dashboard (aggregated) ────────────────────────────────────
+# â”€â”€ Dashboard (aggregated) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get(
     "/dashboard",
-    summary="Aggregated SOC dashboard (single call → 3 services)",
+    summary="Aggregated SOC dashboard (single call â†’ 3 services)",
 )
 async def get_dashboard(
     request: Request,
@@ -80,7 +80,7 @@ async def get_dashboard(
     if cached:
         return json.loads(cached)
 
-    # ── Local DB metrics (always available) ───────────────────
+    # â”€â”€ Local DB metrics (always available) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(hours=24)
 
@@ -132,10 +132,10 @@ async def get_dashboard(
         .limit(10)
     )).scalars().all()
 
-    # ── Downstream aggregation (parallel fan-out) ─────────────
+    # â”€â”€ Downstream aggregation (parallel fan-out) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     downstream = await aggregate_dashboard(request_id=request_id)
 
-    # ── Merge local + downstream ──────────────────────────────
+    # â”€â”€ Merge local + downstream â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     result = {
         "total_entities": total_entities,
         "active_alerts": active_alerts,
@@ -160,7 +160,7 @@ async def get_dashboard(
     return result
 
 
-# ── Entity list (local DB) ────────────────────────────────────
+# â”€â”€ Entity list (local DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/entities", response_model=PaginatedResponse)
 async def list_entities(
@@ -215,7 +215,7 @@ async def list_entities(
     )
 
 
-# ── Entity detail ─────────────────────────────────────────────
+# â”€â”€ Entity detail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/entities/{entity_id}", response_model=EntityDetailResponse)
 async def get_entity_detail(
@@ -253,7 +253,7 @@ async def get_entity_detail(
         elif isinstance(trend_data, dict) and "scores" in trend_data:
             risk_history = trend_data["scores"]
     except Exception:
-        pass  # Graceful degradation — trend is optional
+        pass  # Graceful degradation â€” trend is optional
 
     return EntityDetailResponse(
         **EntityResponse.model_validate(entity).model_dump(),
@@ -262,7 +262,7 @@ async def get_entity_detail(
     )
 
 
-# ── Model health (proxy) ─────────────────────────────────────
+# â”€â”€ Model health (proxy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get(
     "/model-health",
@@ -276,8 +276,8 @@ async def model_health(
 ) -> Any:
     """
     Aggregates model health from:
-      1. Alert service → FP/FN analysis report
-      2. Risk-scoring service → current thresholds + PID history
+      1. Alert service â†’ FP/FN analysis report
+      2. Risk-scoring service â†’ current thresholds + PID history
     """
     from services.api_gateway.app.services.service_client import _safe_get_factory
     import asyncio
@@ -303,7 +303,7 @@ async def model_health(
     }
 
 
-# ── Risk scoring proxy ───────────────────────────────────────
+# â”€â”€ Risk scoring proxy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get(
     "/thresholds",

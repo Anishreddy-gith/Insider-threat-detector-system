@@ -1,5 +1,5 @@
-"""
-Auth Routes — Login / Register / Refresh
+﻿"""
+Auth Routes â€” Login / Register / Refresh
 ==========================================
 Handles user authentication lifecycle.
 
@@ -7,8 +7,8 @@ Security notes:
   * Passwords are hashed with bcrypt (cost factor 12 via passlib).
   * Login returns a short-lived access token + long-lived refresh token.
   * Refresh endpoint issues a new access token without re-entering
-    credentials — standard OAuth 2.0 pattern.
-  * Failed login attempts are logged but NOT rate-limited here —
+    credentials â€” standard OAuth 2.0 pattern.
+  * Failed login attempts are logged but NOT rate-limited here â€”
     the per-role rate-limiter middleware handles that globally.
 """
 
@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.api_gateway.app.auth_components.jwt_handler import (
+from services.api_gateway.app.auth.jwt_handler import (
     Role,
     create_access_token,
     create_refresh_token,
@@ -28,7 +28,7 @@ from services.api_gateway.app.auth_components.jwt_handler import (
     verify_password,
     verify_refresh_token,
 )
-from services.api_gateway.app.auth_components.rbac import TokenPayload, get_current_user
+from services.api_gateway.app.auth.rbac import TokenPayload, get_current_user
 from services.api_gateway.app.models.database import User, get_db
 from services.api_gateway.app.models.schemas import (
     LoginRequest,
@@ -40,7 +40,7 @@ from services.api_gateway.app.models.schemas import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-# ── Register ──────────────────────────────────────────────────
+# â”€â”€ Register â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post(
     "/register",
@@ -67,7 +67,7 @@ async def register(
             detail="A user with this email already exists.",
         )
 
-    # Validate role — only allow valid RBAC roles
+    # Validate role â€” only allow valid RBAC roles
     valid_roles = {r.value for r in Role}
     role = body.role.upper() if body.role else Role.SOC_ANALYST
     if role not in valid_roles:
@@ -87,7 +87,7 @@ async def register(
     return UserResponse.model_validate(user)
 
 
-# ── Login ─────────────────────────────────────────────────────
+# â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post(
     "/login",
@@ -102,8 +102,8 @@ async def login(
     Authenticate with email + password.
 
     Returns:
-      * ``access_token``  — 30-minute JWT for API calls.
-      * ``refresh_token`` — 7-day JWT to obtain new access tokens.
+      * ``access_token``  â€” 30-minute JWT for API calls.
+      * ``refresh_token`` â€” 7-day JWT to obtain new access tokens.
     """
     result = await db.execute(
         select(User).where(User.email == body.email)
@@ -136,7 +136,7 @@ async def login(
     )
 
 
-# ── Refresh ───────────────────────────────────────────────────
+# â”€â”€ Refresh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post(
     "/refresh",
@@ -187,7 +187,7 @@ async def refresh_token(
     )
 
 
-# ── Current user ──────────────────────────────────────────────
+# â”€â”€ Current user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get(
     "/me",

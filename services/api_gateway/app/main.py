@@ -1,17 +1,14 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
-import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
 from kafka import KafkaProducer
 from pydantic import BaseModel, Field
 
-from services.api_gateway.app.auth import JWTAuthMiddleware
 from services.api_gateway.app.rate_limit import RateLimitMiddleware
 from services.api_gateway.app.redis_client import RiskRedisStore
 
@@ -27,67 +24,19 @@ def _json_serializer(value: dict[str, Any]) -> bytes:
     return json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
 
 
-def _env_flag(name: str, default: str = "false") -> bool:
-    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+def _load_jwt_auth_middleware():
+    import pathlib
+
+    auth_path = pathlib.Path(__file__).with_name("auth.py")
+    spec = importlib.util.spec_from_file_location("gateway_auth_file", auth_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Unable to load auth.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.JWTAuthMiddleware
 
 
-def _demo_risk_for(event: dict[str, Any]) -> dict[str, Any]:
-    metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
-    activity_type = str(event.get("activity_type", "")).lower()
-    score = 0.18
-
-    if activity_type in {"file_download", "data_exfiltration", "privilege_escalation"}:
-        score += 0.42
-    if metadata.get("after_hours") is True:
-        score += 0.18
-    if metadata.get("failed_logins", 0) and int(metadata.get("failed_logins", 0)) >= 3:
-        score += 0.14
-
-    final_score = round(min(score, 0.99), 2)
-    if final_score >= 0.75:
-        risk_level = "critical"
-    elif final_score >= 0.5:
-        risk_level = "high"
-    elif final_score >= 0.3:
-        risk_level = "medium"
-    else:
-        risk_level = "low"
-
-    return {
-        "user_id": str(event["user_id"]),
-        "risk_level": risk_level,
-        "final_score": final_score,
-        "updated_at": int(time.time()),
-        "demo_mode": True,
-    }
-
-
-class InMemoryRiskStore:
-    def __init__(self) -> None:
-        self._values: dict[str, dict[str, Any]] = {}
-
-    def get_latest(self, user_id: str) -> dict[str, Any] | None:
-        return self._values.get(user_id)
-
-    def set_latest(self, user_id: str, payload: dict[str, Any]) -> None:
-        self._values[user_id] = payload
-
-
-class DemoProducer:
-    def __init__(self, risk_store: InMemoryRiskStore) -> None:
-        self.risk_store = risk_store
-        self.events: list[dict[str, Any]] = []
-
-    def send(self, topic: str, value: dict[str, Any]) -> None:
-        self.events.append({"topic": topic, "value": value})
-        if topic == TOPICS["user_activity"]:
-            self.risk_store.set_latest(str(value["user_id"]), _demo_risk_for(value))
-
-    def flush(self) -> None:
-        return None
-
-    def close(self) -> None:
-        return None
+JWTAuthMiddleware = _load_jwt_auth_middleware()
 
 
 class IngestEvent(BaseModel):
@@ -108,34 +57,8 @@ app.add_middleware(JWTAuthMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=int(os.getenv("RATE_LIMIT_PER_MINUTE", "120")))
 
 
-def _cors_origins() -> list[str]:
-    raw = os.getenv("CORS_ALLOW_ORIGINS", "https://anishreddy-gith.github.io")
-    return [origin.strip() for origin in raw.split(",") if origin.strip()]
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 @app.on_event("startup")
 def startup() -> None:
-    app.state.demo_mode = _env_flag("DEMO_MODE") or os.getenv("KAFKA_BOOTSTRAP_SERVERS", "").strip().lower() in {
-        "",
-        "demo",
-        "mock",
-        "memory",
-    }
-    if app.state.demo_mode:
-        app.state.redis_store = InMemoryRiskStore()
-        app.state.producer = DemoProducer(app.state.redis_store)
-        app.state.risk_cache = app.state.redis_store._values
-        return
-
     app.state.producer = KafkaProducer(
         bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
         value_serializer=_json_serializer,
@@ -193,13 +116,3 @@ def get_risk(user_id: str) -> RiskResponse:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-@app.get("/healthz")
-def healthz() -> dict[str, str]:
-    return health()
-
-
-@app.get("/metrics", response_class=PlainTextResponse)
-def metrics() -> str:
-    return "# HELP http_requests_total Total HTTP requests\n# TYPE http_requests_total counter\nhttp_requests_total 0\n"

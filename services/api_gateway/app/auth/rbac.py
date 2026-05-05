@@ -1,4 +1,4 @@
-"""
+﻿"""
 Role-Based Access Control (RBAC) Dependencies
 ===============================================
 FastAPI ``Depends()`` callables that enforce per-endpoint access policies.
@@ -13,9 +13,9 @@ Usage in route handlers::
 
 Design decisions
 ----------------
-* **Dependency injection** rather than decorators — integrates cleanly
+* **Dependency injection** rather than decorators â€” integrates cleanly
   with FastAPI's OpenAPI generation and composability model.
-* **Role hierarchy is NOT implicit** — each endpoint explicitly lists
+* **Role hierarchy is NOT implicit** â€” each endpoint explicitly lists
   the roles that may access it.  This avoids subtle privilege-escalation
   bugs where a new role accidentally inherits permissions.
 * ``TokenPayload`` is a typed Pydantic model so route handlers get
@@ -30,10 +30,10 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
-from services.api_gateway.app.auth_components.jwt_handler import Role
+from services.api_gateway.app.auth.jwt_handler import Role
 
 
-# ── Token payload schema ──────────────────────────────────────
+# â”€â”€ Token payload schema â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TokenPayload(BaseModel):
     """Decoded JWT claims available to route handlers."""
@@ -48,7 +48,7 @@ class TokenPayload(BaseModel):
         return self.sub
 
 
-# ── Dependency factories ─────────────────────────────────────
+# â”€â”€ Dependency factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def get_current_user(request: Request) -> TokenPayload:
     """

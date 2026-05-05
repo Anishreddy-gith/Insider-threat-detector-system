@@ -1,17 +1,17 @@
-"""
-Alert Routes — Proxy to Alert Service + Local RBAC
+﻿"""
+Alert Routes â€” Proxy to Alert Service + Local RBAC
 ====================================================
 The gateway proxies alert CRUD to the downstream alert-service while
 enforcing RBAC and writing audit log entries.
 
 Endpoints:
-  GET    /alerts              — List alerts (SOC_ANALYST+)
-  GET    /alerts/stats        — Alert stats (SOC_ANALYST+)
-  GET    /alerts/{id}         — Single alert (SOC_ANALYST+)
-  GET    /alerts/{id}/xai     — XAI report (SOC_ANALYST+)
-  PATCH  /alerts/{id}/status  — Update lifecycle (SOC_ANALYST+)
-  POST   /feedback            — Submit verdict (SOC_ANALYST+)
-  GET    /feedback/stats      — Feedback stats (SOC_MANAGER+)
+  GET    /alerts              â€” List alerts (SOC_ANALYST+)
+  GET    /alerts/stats        â€” Alert stats (SOC_ANALYST+)
+  GET    /alerts/{id}         â€” Single alert (SOC_ANALYST+)
+  GET    /alerts/{id}/xai     â€” XAI report (SOC_ANALYST+)
+  PATCH  /alerts/{id}/status  â€” Update lifecycle (SOC_ANALYST+)
+  POST   /feedback            â€” Submit verdict (SOC_ANALYST+)
+  GET    /feedback/stats      â€” Feedback stats (SOC_MANAGER+)
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from httpx import HTTPStatusError
 
-from services.api_gateway.app.auth_components.jwt_handler import Role
-from services.api_gateway.app.auth_components.rbac import TokenPayload, require_role
+from services.api_gateway.app.auth.jwt_handler import Role
+from services.api_gateway.app.auth.rbac import TokenPayload, require_role
 from services.api_gateway.app.services.service_client import proxy_get, proxy_patch, proxy_post
 
 router = APIRouter(tags=["alerts"])
@@ -32,7 +32,7 @@ def _request_id(request: Request) -> str | None:
     return request.headers.get("X-Request-ID")
 
 
-# ── Alerts ────────────────────────────────────────────────────
+# â”€â”€ Alerts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/alerts", summary="List alerts (proxied to alert-service)")
 async def list_alerts(
@@ -148,7 +148,7 @@ async def update_alert_status(
         )
 
 
-# ── Feedback ──────────────────────────────────────────────────
+# â”€â”€ Feedback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/feedback", summary="Submit analyst feedback (TP/FP/Escalate)")
 async def submit_feedback(

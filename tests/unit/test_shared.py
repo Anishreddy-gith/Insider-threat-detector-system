@@ -11,15 +11,15 @@ class TestCrypto:
     """AES-256-GCM encryption round-trip tests."""
 
     def test_encrypt_decrypt_roundtrip(self):
-        key = b"a" * 32  # 32-byte key
+        key = "a" * 32  # 32-byte key
         plaintext = "john.doe@company.com"
         ciphertext = encrypt_pii(plaintext, key)
         assert ciphertext != plaintext
         assert decrypt_pii(ciphertext, key) == plaintext
 
     def test_different_keys_fail(self):
-        key1 = b"a" * 32
-        key2 = b"b" * 32
+        key1 = "a" * 32
+        key2 = "b" * 32
         ciphertext = encrypt_pii("secret", key1)
         try:
             result = decrypt_pii(ciphertext, key2)
@@ -30,14 +30,14 @@ class TestCrypto:
 
     def test_pseudonymise_deterministic(self):
         """Same input → same pseudonym (required for joins across services)."""
-        key = b"salt-key-for-testing"
+        key = "salt-key-for-testing"
         p1 = pseudonymise("user123", key)
         p2 = pseudonymise("user123", key)
         assert p1 == p2
         assert p1 != "user123"
 
     def test_pseudonymise_different_inputs(self):
-        key = b"salt-key"
+        key = "salt-key"
         p1 = pseudonymise("user1", key)
         p2 = pseudonymise("user2", key)
         assert p1 != p2

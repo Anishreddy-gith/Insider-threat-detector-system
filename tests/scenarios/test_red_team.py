@@ -24,7 +24,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from services.ml_engine.app.detectors import (
+from app.detectors import (
     AutoencoderDetector,
     EnsembleScorer,
     IsolationForestDetector,

@@ -1,11 +1,11 @@
-"""
+﻿"""
 User Management Routes
 ========================
 CRUD for platform users (analysts, managers, admins).
 
 RBAC:
-  • ADMIN — full user management (list, promote, deactivate)
-  • Others — can only read their own profile via ``/auth/me``
+  â€¢ ADMIN â€” full user management (list, promote, deactivate)
+  â€¢ Others â€” can only read their own profile via ``/auth/me``
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.api_gateway.app.auth_components.jwt_handler import Role
-from services.api_gateway.app.auth_components.rbac import TokenPayload, require_role
+from services.api_gateway.app.auth.jwt_handler import Role
+from services.api_gateway.app.auth.rbac import TokenPayload, require_role
 from services.api_gateway.app.models.database import User, get_db
 from services.api_gateway.app.models.schemas import UserResponse
 

@@ -15,18 +15,11 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         self.protected_prefixes = protected_prefixes
         self.jwt_secret = os.getenv("JWT_SECRET", "change_me_in_production")
         self.jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
-        self.demo_mode = os.getenv("DEMO_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
     def _is_protected(self, path: str) -> bool:
         return any(path.startswith(prefix) for prefix in self.protected_prefixes)
 
     async def dispatch(self, request: Request, call_next):
-        if self.demo_mode:
-            return await call_next(request)
-
-        if request.method == "OPTIONS":
-            return await call_next(request)
-
         if not self._is_protected(request.url.path):
             return await call_next(request)
 

@@ -20,12 +20,12 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from services.ml_engine.app.privacy.differential_privacy import (
+from app.privacy.differential_privacy import (
     DPIsolationForestTrainer,
     LaplaceMechanism,
     explain_epsilon,
 )
-from services.ml_engine.app.privacy.budget_tracker import (
+from app.privacy.budget_tracker import (
     BudgetStatus,
     PrivacyBudgetExhausted,
     PrivacyBudgetTracker,
