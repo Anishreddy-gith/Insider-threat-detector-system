@@ -1,9 +1,9 @@
-﻿"""
+"""
 Audit Log Routes
 =================
 Read-only access to the immutable audit trail.
 
-Only ADMIN users can query audit logs â€” this prevents analysts
+Only ADMIN users can query audit logs — this prevents analysts
 from checking whether their actions are being monitored (which
 could be relevant during an active insider threat investigation).
 
@@ -19,8 +19,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.api_gateway.app.auth.jwt_handler import Role
-from services.api_gateway.app.auth.rbac import TokenPayload, require_role
+from services.api_gateway.app.auth_components.jwt_handler import Role
+from services.api_gateway.app.auth_components.rbac import TokenPayload, require_role
 from services.api_gateway.app.models.database import AuditLog, get_db
 from services.api_gateway.app.models.schemas import AuditLogResponse, PaginatedResponse
 

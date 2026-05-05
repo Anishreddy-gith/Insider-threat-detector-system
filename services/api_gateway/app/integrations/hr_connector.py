@@ -1,26 +1,26 @@
-﻿"""
-HR System Connector â€” Workday / BambooHR Integration
+"""
+HR System Connector — Workday / BambooHR Integration
 ======================================================
 Pulls employment context that enriches the insider-threat risk model:
 
-  â€¢ **Employment status** â€” terminated or resigned employees are
+  • **Employment status** — terminated or resigned employees are
     high-risk during their notice period (data exfiltration window).
-  â€¢ **Department** â€” finance, R&D, and executive staff have access
+  • **Department** — finance, R&D, and executive staff have access
     to higher-value assets.
-  â€¢ **Job role** â€” SysAdmins and DBAs have privileged access that
+  • **Job role** — SysAdmins and DBAs have privileged access that
     makes their anomalies more impactful.
-  â€¢ **Active projects** â€” access to sensitive projects raises the
+  • **Active projects** — access to sensitive projects raises the
     contextual risk multiplier.
-  â€¢ **Resignation date** â€” the #1 predictor of data theft.  CERT's
+  • **Resignation date** — the #1 predictor of data theft.  CERT's
     research shows 70% of IP theft occurs within 60 days of
     resignation.
-  â€¢ **PTO calendar** â€” activity during PTO is an immediate red flag.
+  • **PTO calendar** — activity during PTO is an immediate red flag.
 
 Architecture
 ------------
-1. **Pull mode** â€” ``fetch_employee_context()`` calls the HR API
+1. **Pull mode** — ``fetch_employee_context()`` calls the HR API
    and caches the result in Redis with a 1-hour TTL.
-2. **Push mode** â€” ``/api/v1/hr/webhook`` receives real-time
+2. **Push mode** — ``/api/v1/hr/webhook`` receives real-time
    employment change events (hires, terminations, dept transfers).
    These invalidate the Redis cache for the affected employee and
    publish a Kafka event so downstream services react immediately.
@@ -42,8 +42,8 @@ from typing import Any
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
 
-from services.api_gateway.app.auth.jwt_handler import Role
-from services.api_gateway.app.auth.rbac import TokenPayload, require_role
+from services.api_gateway.app.auth_components.jwt_handler import Role
+from services.api_gateway.app.auth_components.rbac import TokenPayload, require_role
 from services.api_gateway.app.config import get_settings
 from services.api_gateway.app.models.schemas import HREmployeeContext, HRWebhookEvent
 
@@ -62,7 +62,7 @@ router = APIRouter(prefix="/hr", tags=["hr-integration"])
 _HR_CACHE_PREFIX = "hr:employee:"
 
 
-# â”€â”€ Mock HR API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Mock HR API ───────────────────────────────────────────────
 
 # In production, this would call Workday/BambooHR REST API.
 _MOCK_EMPLOYEES: dict[str, dict[str, Any]] = {
@@ -158,7 +158,7 @@ async def _mock_hr_api_call(employee_id: str) -> dict[str, Any] | None:
     return _MOCK_EMPLOYEES.get(employee_id)
 
 
-# â”€â”€ Redis cache helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Redis cache helpers ───────────────────────────────────────
 
 def _cache_key(employee_id: str) -> str:
     return f"{_HR_CACHE_PREFIX}{employee_id}"
@@ -187,7 +187,7 @@ async def _invalidate_cached(redis: aioredis.Redis, employee_id: str) -> None:
     await redis.delete(_cache_key(employee_id))
 
 
-# â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Public API ────────────────────────────────────────────────
 
 async def fetch_employee_context(
     employee_id: str, redis: aioredis.Redis,
@@ -195,7 +195,7 @@ async def fetch_employee_context(
     """
     Get employment context for an employee, with Redis caching (1-hour TTL).
 
-    Called internally by the risk-scoring aggregation pipeline â€”
+    Called internally by the risk-scoring aggregation pipeline —
     not exposed directly as an API endpoint.
     """
     # Check cache first
@@ -214,7 +214,7 @@ async def fetch_employee_context(
     return HREmployeeContext(**data)
 
 
-# â”€â”€ REST endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── REST endpoints ────────────────────────────────────────────
 
 @router.get(
     "/employees/{employee_id}",
@@ -311,7 +311,7 @@ async def list_cached_employees(
     return results
 
 
-# â”€â”€ Webhook receiver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Webhook receiver ──────────────────────────────────────────
 
 def _verify_webhook_signature(payload: bytes, signature: str) -> bool:
     """
@@ -339,10 +339,10 @@ async def hr_webhook(
     Webhook receiver for real-time employment changes.
 
     Called by Workday/BambooHR when:
-      â€¢ An employee is hired
-      â€¢ An employee is terminated
-      â€¢ An employee changes department or role
-      â€¢ An employee is suspended
+      • An employee is hired
+      • An employee is terminated
+      • An employee changes department or role
+      • An employee is suspended
 
     The webhook:
       1. Verifies the HMAC signature (prevents forged events).
@@ -370,7 +370,7 @@ async def hr_webhook(
 
     redis = await _get_redis(request)
 
-    # Invalidate cache for this employee â€” next fetch will pull fresh data
+    # Invalidate cache for this employee — next fetch will pull fresh data
     await _invalidate_cached(redis, event.employee_id)
 
     log.info(

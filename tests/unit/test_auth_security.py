@@ -2,7 +2,7 @@
 Unit tests for the Auth service – security module.
 """
 
-from app.security import (
+from services.auth_service.app.security import (
     hash_password,
     verify_password,
     create_access_token,

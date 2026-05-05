@@ -9,18 +9,13 @@ Provides:
 
 from __future__ import annotations
 
-import sys
+import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-# ── Ensure the repo root and services are on sys.path ────────────
-REPO_ROOT = Path(__file__).resolve().parent.parent
-for sub in ("", "services/ml-engine", "shared"):
-    path = str(REPO_ROOT / sub)
-    if path not in sys.path:
-        sys.path.insert(0, path)
+os.environ["DEBUG"] = "false"
 
 
 # ── Reproducibility ──────────────────────────────────────────────

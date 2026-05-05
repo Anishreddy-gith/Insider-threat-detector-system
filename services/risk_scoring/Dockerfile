@@ -2,15 +2,15 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt \
-	&& pip install --no-cache-dir kafka-python
-
-COPY app/ /app/
-
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-ENV REDIS_URL=redis://redis:6379/0
+ENV PYTHONPATH=/app
 
-CMD ["python", "risk_consumer.py"]
+COPY services/risk_scoring/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r /app/requirements.txt kafka-python
+
+COPY services /app/services
+COPY shared /app/shared
+
+CMD ["python", "-m", "services.risk_scoring.app.risk_consumer"]

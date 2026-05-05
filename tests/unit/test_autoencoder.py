@@ -22,7 +22,7 @@ from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 from scipy import stats
 
-from app.detectors.autoencoder import AutoencoderDetector
+from services.ml_engine.app.detectors.autoencoder import AutoencoderDetector
 
 
 # ── Fixtures ─────────────────────────────────────────────────────
@@ -224,7 +224,9 @@ class TestPropertyBased:
                 max_value=5.0,
                 allow_nan=False,
                 allow_infinity=False,
-            ),
+                  width=32,
+                  allow_subnormal=False,
+              ),
         )
     )
     @h_settings(
@@ -249,7 +251,9 @@ class TestPropertyBased:
                 max_value=5.0,
                 allow_nan=False,
                 allow_infinity=False,
-            ),
+                  width=32,
+                  allow_subnormal=False,
+              ),
         )
     )
     @h_settings(

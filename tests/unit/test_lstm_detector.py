@@ -17,7 +17,7 @@ from hypothesis import given, settings as h_settings, HealthCheck
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
-from app.detectors.lstm_detector import LSTMDetector
+from services.ml_engine.app.detectors.lstm_detector import LSTMDetector
 
 
 # ── Fixtures ─────────────────────────────────────────────────────

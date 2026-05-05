@@ -18,7 +18,7 @@ from hypothesis import given, settings as h_settings, HealthCheck
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
-from app.detectors.ensemble import EnsembleScorer, DEFAULT_DETECTOR_ORDER
+from services.ml_engine.app.detectors.ensemble import EnsembleScorer, DEFAULT_DETECTOR_ORDER
 
 
 # ── Fixtures ─────────────────────────────────────────────────────
@@ -205,7 +205,7 @@ class TestPropertyBased:
                 st.integers(min_value=1, max_value=10),
                 st.just(4),
             ),
-            elements=st.floats(min_value=0.0, max_value=1.0),
+            elements=st.floats(min_value=0.0, max_value=1.0, width=32, allow_subnormal=False),
         )
     )
     @h_settings(
@@ -226,7 +226,7 @@ class TestPropertyBased:
         X=arrays(
             dtype=np.float32,
             shape=(5, 4),
-            elements=st.floats(min_value=0.0, max_value=1.0),
+            elements=st.floats(min_value=0.0, max_value=1.0, width=32, allow_subnormal=False),
         )
     )
     @h_settings(

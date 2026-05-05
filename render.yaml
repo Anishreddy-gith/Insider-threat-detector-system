@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: insider-threat-api
+    runtime: docker
+    plan: free
+    dockerContext: .
+    dockerfilePath: ./services/api_gateway/Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: JWT_SECRET
+        value: supersecretkey
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        value: demo
+      - key: REDIS_URL
+        value: memory://demo
+      - key: PORT
+        value: "10000"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "200"
