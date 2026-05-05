@@ -21,3 +21,5 @@ services:
         value: "10000"
       - key: RATE_LIMIT_PER_MINUTE
         value: "200"
+      - key: CORS_ALLOW_ORIGINS
+        value: "https://anishreddy-gith.github.io"
